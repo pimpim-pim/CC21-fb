@@ -2,8 +2,9 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import createHttpError from "http-errors"
 import identityKeyUtil from "../utils/identity-key.util.js"
-import prisma from "../config/prisma.config.js"
+// import prisma from "../config/prisma.config.js"
 import { loginSchema, registerSchema } from "../validations/schema.js"
+import { createUser, getUserBy } from "../services/user.service.js"
 
 //register
 export const register = async (req, res,next) => {
@@ -19,16 +20,14 @@ export const register = async (req, res,next) => {
   }
 
   //find user if already have registered
-  const haveUser = await prisma.user.findUnique({
-    where: { [identityKey] : identity }
-  })
+  const haveUser = await getUserBy(identityKey, identity)
   if(haveUser) {
     return next(createHttpError[409]('This user already register'))
   }
 
   const newUser = {...user, password : await bcrypt.hash(password,10),}
   
-  const result = await prisma.user.create({data : newUser})
+  const result = await createUser(newUser)
     res.json({
       msg : 'Register Successful',
       result : result
@@ -48,10 +47,9 @@ const identityKey = user.email ? 'email' : 'mobile'
   //   return next(createHttpError[400]('identity must be email or phone number'))
   // }
 
-  const foundUser = await prisma.user.findUnique({
-    where : { [identityKey] : identity}
-  })
+  const foundUser = await getUserBy(identityKey, identity)
 
+  //have no this user
   if(!foundUser) {
     return next(createHttpError[400]('Invalid Login'))
   }
@@ -79,5 +77,5 @@ const identityKey = user.email ? 'email' : 'mobile'
 
 //getMe
 export const getMe = (req,res) => {
- res.json({msg : 'GetMe controller'})
+ res.json({user : req.user})
 }
